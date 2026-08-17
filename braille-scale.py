@@ -6,7 +6,6 @@ import argparse
 import sys
 from pathlib import Path
 
-
 VERSION = "1.0.0"
 
 BRAILLE_BASE = 0x2800
