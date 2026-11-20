@@ -46,10 +46,12 @@ Examples:
   braille-art photo.jpg
   braille-art photo.jpg --width 70
   braille-art photo.jpg --width 70 --threshold 145
+  braille-art photo.jpg --invert
   braille-art photo.jpg --dither
   braille-art photo.jpg --width 70 --dither --output logo.txt
 
-The --output file is overwritten on every run.
+Without --threshold, the threshold is detected automatically
+with Otsu's method. The --output file is overwritten on every run.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -76,8 +78,17 @@ The --output file is overwritten on every run.
     parser.add_argument(
         "--threshold",
         type=int,
-        default=145,
-        help="brightness threshold from 0 to 255 (default: 145, ignored with --dither)",
+        default=None,
+        help="brightness threshold from 0 to 255 "
+        "(default: detected automatically with Otsu's method, "
+        "ignored with --dither)",
+    )
+
+    parser.add_argument(
+        "--invert",
+        action="store_true",
+        help="draw dots for bright pixels instead of dark ones "
+        "(try it when the result looks swapped on a dark terminal)",
     )
 
     parser.add_argument(
@@ -104,7 +115,7 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.width < 1:
         raise ValueError("width must be greater than 0")
 
-    if not 0 <= args.threshold <= 255:
+    if args.threshold is not None and not 0 <= args.threshold <= 255:
         raise ValueError("threshold must be between 0 and 255")
 
 
@@ -136,6 +147,53 @@ def apply_dithering(image: Image.Image) -> Image.Image:
     """
 
     return image.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
+
+
+def otsu_threshold(image: Image.Image) -> int:
+    """
+    Pick a brightness threshold automatically with Otsu's method.
+
+    Otsu's method looks at the brightness histogram and chooses the
+    threshold that best separates dark pixels from bright ones, so
+    most images work well without hand-tuning --threshold.
+    """
+
+    histogram = image.histogram()
+    total = image.width * image.height
+
+    sum_all = sum(value * count for value, count in enumerate(histogram))
+
+    sum_dark = 0.0
+    weight_dark = 0
+    best_variance = -1.0
+    best = 128
+
+    for value, count in enumerate(histogram):
+        weight_dark += count
+
+        if weight_dark == 0:
+            continue
+
+        weight_bright = total - weight_dark
+
+        if weight_bright == 0:
+            break
+
+        sum_dark += value * count
+
+        mean_dark = sum_dark / weight_dark
+        mean_bright = (sum_all - sum_dark) / weight_bright
+
+        variance = weight_dark * weight_bright * (mean_dark - mean_bright) ** 2
+
+        if variance > best_variance:
+            best_variance = variance
+            best = value
+
+    # Otsu splits the histogram into pixels <= best (dark) and the
+    # rest (bright). pixel_to_braille draws a dot when px < threshold,
+    # so shift the split point up by one to keep the darkest class.
+    return min(best + 1, 255)
 
 
 def calculate_dimensions(
@@ -183,6 +241,7 @@ def resize_image(
 def pixel_to_braille(
     image: Image.Image,
     threshold: int,
+    invert: bool = False,
 ) -> str:
     """Convert a grayscale image into Unicode Braille."""
 
@@ -200,7 +259,12 @@ def pixel_to_braille(
             for dx, dy, dot in DOTS:
                 px = pixels[x + dx, y + dy]
 
-                if px < threshold:
+                on = px < threshold
+
+                if invert:
+                    on = not on
+
+                if on:
                     value |= dot
 
             line.append(chr(0x2800 + value))
@@ -220,8 +284,9 @@ def pixel_to_braille(
 def convert(
     image: Image.Image,
     width: int,
-    threshold: int,
+    threshold: int | None = None,
     dither: bool = False,
+    invert: bool = False,
 ) -> str:
     """Convert an image to Braille art."""
 
@@ -231,10 +296,13 @@ def convert(
     if dither:
         image = apply_dithering(image)
         threshold = DITHER_THRESHOLD
+    elif threshold is None:
+        threshold = otsu_threshold(image)
 
     return pixel_to_braille(
         image,
         threshold,
+        invert,
     )
 
 
@@ -262,6 +330,7 @@ def main() -> int:
             args.width,
             args.threshold,
             args.dither,
+            args.invert,
         )
 
     except ValueError as exc:
