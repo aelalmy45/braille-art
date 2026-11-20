@@ -47,6 +47,7 @@ Examples:
   braille-art photo.jpg --width 70
   braille-art photo.jpg --width 70 --threshold 145
   braille-art photo.jpg --invert
+  braille-art photo.jpg --color
   braille-art photo.jpg --dither
   braille-art photo.jpg --width 70 --dither --output logo.txt
 
@@ -89,6 +90,14 @@ with Otsu's method. The --output file is overwritten on every run.
         action="store_true",
         help="draw dots for bright pixels instead of dark ones "
         "(try it when the result looks swapped on a dark terminal)",
+    )
+
+    parser.add_argument(
+        "--color",
+        action="store_true",
+        help="render the art in ANSI 24-bit color, averaging the source "
+        "pixels under each dot (best viewed in a terminal; escape codes "
+        "are kept when writing to a file)",
     )
 
     parser.add_argument(
@@ -242,16 +251,26 @@ def pixel_to_braille(
     image: Image.Image,
     threshold: int,
     invert: bool = False,
+    color_image: Image.Image | None = None,
 ) -> str:
-    """Convert a grayscale image into Unicode Braille."""
+    """
+    Convert a grayscale image into Unicode Braille.
+
+    With color_image (an RGB image of the same pixel size), each drawn
+    cell is wrapped in an ANSI 24-bit escape carrying the average color
+    of the source pixels under its dots.
+    """
 
     pixels = image.load()
+    color_pixels = color_image.load() if color_image is not None else None
     width, height = image.size
 
     lines = []
 
     for y in range(0, height, 4):
         line = []
+        last_color = None
+        colored = False
 
         for x in range(0, width, 2):
             value = 0
@@ -267,9 +286,35 @@ def pixel_to_braille(
                 if on:
                     value |= dot
 
-            line.append(chr(0x2800 + value))
+            char = chr(0x2800 + value)
 
-        lines.append("".join(line).rstrip())
+            if color_pixels is not None and value:
+                red = green = blue = count = 0
+
+                for dx, dy, dot in DOTS:
+                    if value & dot:
+                        r, g, b = color_pixels[x + dx, y + dy][:3]
+                        red += r
+                        green += g
+                        blue += b
+                        count += 1
+
+                color = (red // count, green // count, blue // count)
+
+                if color != last_color:
+                    line.append(f"\x1b[38;2;{color[0]};{color[1]};{color[2]}m")
+                    last_color = color
+
+                colored = True
+
+            line.append(char)
+
+        text = "".join(line).rstrip()
+
+        if colored:
+            text += "\x1b[0m"
+
+        lines.append(text)
 
     # Remove empty rows at the top and bottom.
     while lines and not lines[0]:
@@ -287,11 +332,20 @@ def convert(
     threshold: int | None = None,
     dither: bool = False,
     invert: bool = False,
+    color: bool = False,
 ) -> str:
     """Convert an image to Braille art."""
 
+    color_image = image.convert("RGB") if color else None
+
     image = prepare_image(image)
     image = resize_image(image, width)
+
+    if color_image is not None:
+        color_image = color_image.resize(
+            image.size,
+            Image.Resampling.LANCZOS,
+        )
 
     if dither:
         image = apply_dithering(image)
@@ -303,6 +357,7 @@ def convert(
         image,
         threshold,
         invert,
+        color_image,
     )
 
 
@@ -331,6 +386,7 @@ def main() -> int:
             args.threshold,
             args.dither,
             args.invert,
+            args.color,
         )
 
     except ValueError as exc:
