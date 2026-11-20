@@ -1,5 +1,7 @@
 # Braille Art
 
+[![tests](https://github.com/aelalmy45/braille-art/actions/workflows/tests.yml/badge.svg)](https://github.com/aelalmy45/braille-art/actions/workflows/tests.yml)
+
 Command-line tools for turning images into Unicode Braille art and resizing
 existing Braille art.
 
@@ -60,14 +62,39 @@ braille-art photo.jpg --width 70
 
 #### Threshold
 
-The threshold controls which pixels become filled Braille dots (0–255,
-default 145). Lower values produce fewer filled dots, higher values produce
-more:
+By default the threshold that decides which pixels become filled Braille
+dots is detected automatically with
+[Otsu's method](https://en.wikipedia.org/wiki/Otsu%27s_method), which works
+well for most images. Use `--threshold` (0–255) to set it yourself. Lower
+values produce fewer filled dots, higher values produce more:
 
 ```bash
 braille-art photo.jpg --width 70 --threshold 120
 braille-art photo.jpg --width 70 --threshold 170
 ```
+
+#### Invert
+
+Dots are drawn for the dark parts of the image. If the result looks swapped
+on your terminal (for example a dark image on a dark terminal), use
+`--invert` to draw dots for the bright parts instead:
+
+```bash
+braille-art photo.jpg --invert
+```
+
+#### Color
+
+Use `--color` to render the art in ANSI 24-bit color. Each drawn cell gets
+the average color of the source pixels under its dots:
+
+```bash
+braille-art photo.jpg --color
+```
+
+Color works together with `--dither` and `--invert`. When writing to a file
+with `--output`, the ANSI escape codes are kept; view the file with `cat`
+to see the colors.
 
 #### Dithering
 
@@ -132,11 +159,25 @@ braille-art/
 │   ├── __init__.py
 │   ├── image_to_braille.py
 │   └── braille_scale.py
+├── tests/                # pytest suite
+├── .github/workflows/    # CI: tests on push and pull requests
 ├── image-to-braille.py   # direct-run wrapper (braille-art)
 ├── braille-scale.py      # direct-run wrapper (braille-scale)
 ├── pyproject.toml
 └── README.md
 ```
+
+## Development
+
+Install the package in editable mode with the test dependencies, then run
+the test suite:
+
+```bash
+pip install -e .[dev]
+pytest
+```
+
+Tests run automatically on every push and pull request (Python 3.9–3.13).
 
 ## How it works
 
@@ -152,7 +193,7 @@ Each Unicode Braille character represents a 2 × 4 block of 8 dots:
 Image conversion pipeline:
 
 ```text
-Image → Grayscale → Contrast normalization → Resize → Threshold/Dither → Braille
+Image → Grayscale → Contrast normalization → Resize → Auto threshold/Dither → Braille
 ```
 
 Scaling pipeline:
