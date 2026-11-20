@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "braille-art"
+description = "Convert images to Unicode Braille art and resize Braille art"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["Pillow>=9.1"]
+dynamic = ["version"]
+
+[project.scripts]
+braille-art = "braille_art.image_to_braille:main"
+braille-scale = "braille_art.braille_scale:main"
+
+[tool.setuptools]
+packages = ["braille_art"]
+
+[tool.setuptools.dynamic]
+version = {attr = "braille_art.__version__"}

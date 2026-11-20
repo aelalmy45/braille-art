@@ -56,6 +56,34 @@ Braille
 
 ---
 
+# Installation
+
+Install with pipx (recommended) or pip:
+
+```bash
+pipx install git+https://github.com/aelalmy45/braille-art.git
+```
+
+Or from a local clone:
+
+```bash
+pip install .
+```
+
+This provides two commands:
+
+- `braille-art` — convert an image to Braille art
+- `braille-scale` — resize existing Braille art
+
+Running from a clone without installing still works too (`Pillow` must be installed):
+
+```bash
+python image-to-braille.py photo.jpg
+python braille-scale.py logo.txt
+```
+
+---
+
 # Requirements
 
 Python 3 and Pillow.
@@ -73,7 +101,7 @@ pip install Pillow
 Basic usage:
 
 ```bash
-python image-to-braille.py photo.jpg
+braille-art photo.jpg
 ```
 
 The default width is `80` Braille characters.
@@ -83,13 +111,13 @@ The default width is `80` Braille characters.
 ## Set width
 
 ```bash
-python image-to-braille.py photo.jpg --width 70
+braille-art photo.jpg --width 70
 ```
 
 For example:
 
 ```bash
-python image-to-braille.py photo.jpg --width 70
+braille-art photo.jpg --width 70
 ```
 
 ---
@@ -107,7 +135,7 @@ Valid range:
 Example:
 
 ```bash
-python image-to-braille.py photo.jpg \
+braille-art photo.jpg \
   --width 70 \
   --threshold 145
 ```
@@ -115,9 +143,9 @@ python image-to-braille.py photo.jpg \
 Some useful values to experiment with:
 
 ```bash
-python image-to-braille.py photo.jpg --width 70 --threshold 120
-python image-to-braille.py photo.jpg --width 70 --threshold 145
-python image-to-braille.py photo.jpg --width 70 --threshold 170
+braille-art photo.jpg --width 70 --threshold 120
+braille-art photo.jpg --width 70 --threshold 145
+braille-art photo.jpg --width 70 --threshold 170
 ```
 
 Lower values generally produce fewer filled pixels.
@@ -126,12 +154,27 @@ Higher values generally produce more filled pixels.
 
 ---
 
+## Dithering
+
+Use `--dither` to apply Floyd-Steinberg dithering instead of a flat threshold:
+
+```bash
+braille-art photo.jpg --dither
+```
+
+Dithering usually gives much better results for photos and images with
+gradients, because it preserves shading that a flat threshold loses.
+
+When `--dither` is enabled, `--threshold` is ignored.
+
+---
+
 # Save output
 
 Use `--output` or `-o`:
 
 ```bash
-python image-to-braille.py photo.jpg \
+braille-art photo.jpg \
   --width 70 \
   --threshold 145 \
   --output logo.txt
@@ -142,7 +185,7 @@ The output file is **overwritten** on every run.
 For example:
 
 ```bash
-python image-to-braille.py photo.jpg \
+braille-art photo.jpg \
   --width 70 \
   --threshold 170 \
   --output logo.txt
@@ -159,7 +202,7 @@ The tool does not append old results.
 Basic usage:
 
 ```bash
-python braille-scale.py logo.txt
+braille-scale logo.txt
 ```
 
 The default scale is:
@@ -173,19 +216,19 @@ The default scale is:
 ## Scale to 50%
 
 ```bash
-python braille-scale.py logo.txt 0.50
+braille-scale logo.txt 0.50
 ```
 
 ## Scale to 60%
 
 ```bash
-python braille-scale.py logo.txt 0.60
+braille-scale logo.txt 0.60
 ```
 
 ## Scale to 25%
 
 ```bash
-python braille-scale.py logo.txt 0.25
+braille-scale logo.txt 0.25
 ```
 
 The scale must be greater than `0` and less than or equal to `1`.
@@ -195,7 +238,7 @@ The scale must be greater than `0` and less than or equal to `1`.
 # Save scaled output
 
 ```bash
-python braille-scale.py \
+braille-scale \
   logo.txt \
   0.50 \
   --output small-logo.txt
@@ -210,7 +253,7 @@ The output file is overwritten if it already exists.
 A common workflow is:
 
 ```bash
-python image-to-braille.py \
+braille-art \
   Photo.jpg \
   --width 70 \
   --threshold 145 \
@@ -220,7 +263,7 @@ python image-to-braille.py \
 Then:
 
 ```bash
-python braille-scale.py \
+braille-scale \
   logo.txt \
   0.50
 ```
@@ -228,7 +271,7 @@ python braille-scale.py \
 Or save the scaled version:
 
 ```bash
-python braille-scale.py \
+braille-scale \
   logo.txt \
   0.50 \
   --output small-logo.txt
@@ -243,23 +286,23 @@ If you forget how to use a command, use `--help`.
 For image conversion:
 
 ```bash
-python image-to-braille.py --help
+braille-art --help
 ```
 
 For scaling:
 
 ```bash
-python braille-scale.py --help
+braille-scale --help
 ```
 
 Version information:
 
 ```bash
-python image-to-braille.py --version
+braille-art --version
 ```
 
 ```bash
-python braille-scale.py --version
+braille-scale --version
 ```
 
 ---
@@ -268,8 +311,13 @@ python braille-scale.py --version
 
 ```text
 braille-art/
-├── image-to-braille.py
-├── braille-scale.py
+├── braille_art/          # the installable package
+│   ├── __init__.py
+│   ├── image_to_braille.py
+│   └── braille_scale.py
+├── image-to-braille.py   # direct-run wrapper (braille-art)
+├── braille-scale.py      # direct-run wrapper (braille-scale)
+├── pyproject.toml
 ├── README.md
 └── logo.txt
 ```
@@ -317,7 +365,7 @@ The generated Braille can be used anywhere Unicode text can be displayed.
 Create a terminal-sized logo:
 
 ```bash
-python image-to-braille.py \
+braille-art \
   Photo.jpg \
   --width 70 \
   --threshold 145
@@ -326,7 +374,7 @@ python image-to-braille.py \
 Create and save a logo:
 
 ```bash
-python image-to-braille.py \
+braille-art \
   Photo.jpg \
   --width 70 \
   --threshold 145 \
@@ -336,7 +384,7 @@ python image-to-braille.py \
 Create a smaller version:
 
 ```bash
-python braille-scale.py \
+braille-scale \
   logo.txt \
   0.50
 ```
@@ -344,7 +392,7 @@ python braille-scale.py \
 Save the smaller version:
 
 ```bash
-python braille-scale.py \
+braille-scale \
   logo.txt \
   0.50 \
   --output small-logo.txt
